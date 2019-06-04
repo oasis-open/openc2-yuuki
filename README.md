@@ -23,7 +23,7 @@
 
 <p>The purpose of the openc2-yuuki GitHub repository is to (a) demonstrate the implementation of OpenC2 via multiple dispatch on type, and (b) provision a codebase to enable other prototype efforts.</p>
 
-<p>Yuuki is a python package for building an OpenC2 proxy.  Yuuki utilizes multiple dispatch on type and supports updating of actuators without interrupting the operations of the orchestrator or other actuators.  Yuuki is compatible with python version 2.7</p>
+<p>Yuuki is a python package for building an OpenC2 proxy.  Yuuki utilizes multiple dispatch on type and supports updating of actuators without interrupting the operations of the orchestrator or other actuators.  Yuuki is compatible with python version 3.7</p>
 
 <p>The initial codebase for the openc2-yuuki repository is imported from the OpenC2 Forum's Github repository.</p>
 
