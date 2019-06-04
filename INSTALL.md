@@ -5,7 +5,7 @@
 > This is because the Internet has ruined my way of looking at the world."
 > - from A Girl Corrupted by the Internet is the Summoned Hero?! by Eliezer Yudkowsky
 
-Yuuki is a Python package for building an OpenC2 proxy. Yuuki is currently compatible with Python 2.7 only.
+Yuuki is a Python package for building an OpenC2 proxy. Yuuki is currently compatible with Python 3.7 only.
 
 ## Getting Started
 
