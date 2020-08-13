@@ -1,70 +1,288 @@
-<div>
-<h1>README</h1>
+# Introduction
 
-<div>
-<h2><a id="readme-general">OASIS TC Open Repository: openc2-yuuki</a></h2>
+Yuuki is a lightweight OpenC2 framework that comes with example Consumers, all built on an extensible library, with default support for **HTTP** and **MQTT** protocols. It serves a few purposes:
 
-<p>This GitHub public repository ( <b><a href="https://github.com/oasis-open/openc2-yuuki">https://github.com/oasis-open/openc2-yuuki</a></b> ) was created at the request of the <a href="https://www.oasis-open.org/committees/openc2/">OASIS Open Command and Control (OpenC2) TC</a> as an <a href="https://www.oasis-open.org/resources/open-repositories/">OASIS TC Open Repository</a> to support development of open source resources related to Technical Committee work.</p>
+* Provide [ready-made examples](#simple-example-http) to
+  * Introduce you to OpenC2
+  * Test against your own OpenC2 Producer
+* Provide a library to
+  * Ease implementation of Actuator Profiles
+  * Ease experimentation with different Transports, Serializations and Validators
 
-<p>While this TC Open Repository remains associated with the sponsor TC, its development priorities, leadership, intellectual property terms, participation rules, and other matters of governance are <a href="https://github.com/oasis-open/openc2-yuuki/blob/master/CONTRIBUTING.md#governance-distinct-from-oasis-tc-process">separate and distinct</a> from the OASIS TC Process and related policies.</p>
+To jump right in, head over to the examples directory, or follow along below for a guided tour.
 
-<p>All contributions made to this TC Open Repository are subject to open source license terms expressed in the <a href="https://www.oasis-open.org/sites/www.oasis-open.org/files/BSD-3-Clause.txt">BSD-3-Clause License</a>.  That license was selected as the declared <a href="https://www.oasis-open.org/resources/open-repositories/licenses">"Applicable License"</a> when the TC Open Repository was created.</p>
+# Closed Issues
 
-<p>As documented in <a href="https://github.com/oasis-open/openc2-yuuki/blob/master/CONTRIBUTING.md#public-participation-invited">"Public Participation Invited</a>", contributions to this OASIS TC Open Repository are invited from all parties, whether affiliated with OASIS or not.  Participants must have a GitHub account, but no fees or OASIS membership obligations are required.  Participation is expected to be consistent with the <a href="https://www.oasis-open.org/policies-guidelines/open-repositories">OASIS TC Open Repository Guidelines and Procedures</a>, the open source <a href="https://github.com/oasis-open/openc2-yuuki/blob/master/LICENSE">LICENSE</a> designated for this particular repository, and the requirement for an <a href="https://www.oasis-open.org/resources/open-repositories/cla/individual-cla">Individual Contributor License Agreement</a> that governs intellectual property.</p>
+* [x] Support HTTP Transport
+* [x] Support MQTT Transport
+* [x] Suport JSON serialization
+* [x] Allow swapping in new serializations
+* [x] Allow swapping in new transports
+* [x] Allow swapping in new validation
 
-</div>
+# Open Issues
 
-<div>
-<h2><a id="purposeStatement">Statement of Purpose</a></h2>
+* [ ] Support TLS
+* [ ] Support Running Multiple Actuator Profiles At Once
 
-<p>Statement of Purpose for this OASIS TC Open Repository (openc2-yuuki) as <a href="https://drive.google.com/open?id=0B-FunCZrr-vtcUJTWVBNaFNlVUE">proposed</a> and <a href="https://www.oasis-open.org/committees/ballot.php?id=3115">approved</a> [<a href="https://issues.oasis-open.org/browse/TCADMIN-2746">bis</a>] by the OpenC2 TC:</p>
+# Yuuki
 
-<p>The purpose of the openc2-yuuki GitHub repository is to (a) demonstrate the implementation of OpenC2 via multiple dispatch on type, and (b) provision a codebase to enable other prototype efforts.</p>
-
-<p>Yuuki is a python package for building an OpenC2 proxy.  Yuuki is compatible with python version 3.7</p>
-
-<p>The initial codebase for the openc2-yuuki repository is imported from the OpenC2 Forum's Github repository.</p>
+A Yuuki Consumer is a program that listens for OpenC2 Commands sent from an OpenC2 Producer. It uses received commands to control an actuator. The sequence diagram below shows the basic flow of an OpenC2 Message, from receiving a Command to sending a Response.
 
 
-</div>
+#### Architecture
 
-<div><h2><a id="purposeClarifications">Additions to Statement of Purpose</a></h2>
+```
+OpenC2 Producer               ----------------- Yuuki (OpenC2 Consumer)-----------------       Actuator
+    |                         |                                                        |           |
+    |                         |                                                        |           |
+    |                         | Transport     Serialize /      Validate       Actuator |           |
+    |                         | Endpoint      Deserialize         |           Profile  |           |
+    |                         |    |               |              |           Command  |           |
+    v                         |    |               |              |              |     |           |
+                              |    v               v              v              v     |           v
+    |         Network         |                                                        |              
+    | ------------------------|--> |                                                   |              
+    |       OpenC2 Command    |    |                                                   |              
+            (serialized)      |    | ------------> |                                   |              
+                              |                    |                                   |            
+                              |                    | -----------> | OpenC2 Command     |              
+                              |                                   |  (Python Obj)      |              
+                              |                                   | ------------> |    |              
+                              |                                                   |    |              
+                              |                                                   | ---|---------> |
+                              |                                                   |    |           |
+                              |                                                   | <--|---------- |
+                              |                                                   |    |              
+                              |                    | <--------------------------- |    |             
+                              |                    |        OpenC2 Response            |              
+                              |    | <------------ |          (Python Obj)             |     
+    |                         |    |                                                   |              
+    | <-----------------------|--- |                                                   |              
+    |      OpenC2 Response    |                                                        |              
+             (serialized)     ----------------------------------------------------------              
 
-<p>Please see INSTALL.md for installation and usage instructions.</p>
-</div>
+```
 
-<div>
-<h2><a id="maintainers">Maintainers</a></h2>
+Yuuki is designed so that any of these steps can be customized or replaced.
 
-<p>TC Open Repository <a href="https://www.oasis-open.org/resources/open-repositories/maintainers-guide">Maintainers</a> are responsible for oversight of this project's community development activities, including evaluation of GitHub <a href="https://github.com/oasis-open/openc2-yuuki/blob/master/CONTRIBUTING.md#fork-and-pull-collaboration-model">pull requests</a> and <a href="https://www.oasis-open.org/policies-guidelines/open-repositories#repositoryManagement">preserving</a> open source principles of openness and fairness. Maintainers are recognized and trusted experts who serve to implement community goals and consensus design preferences.</p>
+* Want to use **MQTT**, **HTTP** or even add a **new transport**? 
+* Want to serialize your messages with **CBOR** instead of **JSON**?
+* Want to use a **schema** validation tool, instead of simple Python functions to validate OpenC2 Messages?
 
-<p>Initially, the associated TC members have designated one or more persons to serve as Maintainer(s); subsequently, participating community members may select additional or substitute Maintainers, per <a href="https://www.oasis-open.org/resources/open-repositories/maintainers-guide#additionalMaintainers">consensus agreements</a>.</p>
+For all of these goals, the solution is to swap out what you'd like replace. Each step is independent of the others.
 
-<p><b><a id="currentMaintainers">Current Maintainers of this TC Open Repository</a></b></p>
+For example, look at how the main OpenC2 Consumer is contructed in **simple_http.py** in the *examples* folder:
 
-<ul>
-<li><a href="mailto:dpkemp@radium.ncsc.mil">Dave Kemp</a>; GitHub ID: <a href="https://github.com/davaya">https://github.com/davaya</a>; WWW: <a href="http://www.nsa.gov/">Department of Defense</a></li>
+```python
+consumer = Consumer( 
+    profile       = ProfileSLPF(validator = validate_cmd),
+    transport     = Http(http_config),
+    serialization = Json )
+```
 
-<li><a href="mailto:jtcbrule@gmail.com">Joshua Brul&eacute;</a>; GitHub ID: <a href="https://github.com/jtcbrule">https://github.com/jtcbrule</a>; WWW: <a href="https://umd.edu/">University of Maryland</a></li>
+See the **Json**, **Http** and **validate_cmd** parameters? Simply replace any of those with a library of your own; just as long as you follow the same Yuuki interface.
 
-</ul>
+Before getting ahead of ourselves with customization, let's just run a simple example: HTTP
 
-</div>
+*But first, install Yuuki.*
 
-<div><h2><a id="aboutOpenRepos">About OASIS TC Open Repositories</a></h2>
+# Installation
 
-<p><ul>
-<li><a href="https://www.oasis-open.org/resources/open-repositories/">TC Open Repositories: Overview and Resources</a></li>
-<li><a href="https://www.oasis-open.org/resources/open-repositories/faq">Frequently Asked Questions</a></li>
-<li><a href="https://www.oasis-open.org/resources/open-repositories/licenses">Open Source Licenses</a></li>
-<li><a href="https://www.oasis-open.org/resources/open-repositories/cla">Contributor License Agreements (CLAs)</a></li>
-<li><a href="https://www.oasis-open.org/resources/open-repositories/maintainers-guide">Maintainers' Guidelines and Agreement</a></li>
-</ul></p>
+Using Python3.7+, install via venv and pip:
+```sh
+mkdir yuuki
+cd yuuki
+python3 -m venv venv
+source venv/bin/activate
+git clone THIS_REPO
+TEMPORARARY, CHANGE TO DEVELOP BRANCH: cd openc2-yuuki && git checkout mqtt-develop && cd ..
+pip install ./openc2-yuuki
+```
 
-</div>
+# Simple Example: HTTP
 
-<div><h2><a id="feedback">Feedback</a></h2>
+Create a default config file in the *examples* directory with:
 
-<p>Questions or comments about this TC Open Repository's activities should be composed as GitHub issues or comments. If use of an issue/comment is not possible or appropriate, questions may be directed by email to the Maintainer(s) <a href="#currentMaintainers">listed above</a>.  Please send general questions about TC Open Repository participation to OASIS Staff at <a href="mailto:repository-admin@oasis-open.org">repository-admin@oasis-open.org</a> and any specific CLA-related questions to <a href="mailto:repository-cla@oasis-open.org">repository-cla@oasis-open.org</a>.</p>
+```sh
+cd openc2-yuuki/examples
+python -m yuuki.consumer.config_writer
+```
 
-</div></div>
+Now run the HTTP consumer in the *examples* directory with
+
+```sh
+python simple_http.py
+```
+
+## Test HTTP Transport
+
+### Publish an OpenC2 Command
+In a new terminal window, go back to the root "yuuki" folder, then enable the virtual environment and start a Python shell.
+
+```sh
+source venv/bin/activate
+python
+```
+
+Copy this text into the shell.
+
+```python
+import requests
+import json
+
+query_features = {
+        "action": "query",
+        "target": {
+            "features": []
+        },
+        "args": {
+            "response_requested": "complete"
+        }
+    }
+
+as_json = json.dumps(query_features)
+headers = {"Content-Type" : "application/json"}
+
+response = requests.post("http://127.0.0.1:9001", json=as_json, headers=headers, verify=False)
+
+print('Sent OpenC2 Command')
+print(json.dumps(response.json(), indent=4))
+pass
+
+```
+
+Because we're testing locally, you should instantly see the OpenC2 Response, similar to this.
+
+```json
+{
+    "status": 200,
+    "status_text": "OK - the Command has succeeded.",
+    "results": {
+        "versions": [
+            "1.0"
+        ],
+        "profiles": [
+            "slpf"
+```
+
+*When done with this Producer shell, type exit() and hit enter*
+
+Success! The Yuuki Consumer successfully received an OpenC2 Command, then returned an Openc2 Response.
+
+### Shut Down
+In the Yuuki Consumer shell, hit CTRL-C to stop the process.
+
+# Advanced Example: MQTT
+If you don't have a config file in the *examples* directory, create one now with:
+
+```sh
+cd openc2-yuuki/examples
+python -m yuuki.consumer.config_writer
+```
+
+We'll need to connect to an MQTT broker. There are a few public brokers to test against that offer no privacy. We'll use Mosquitto. 
+
+In the MQTT transport section of **yuuki_config.json**, supply the socket address for the broker.
+
+```json    
+"socket" : "test.mosquitto.org:1883"
+```
+
+Save your config file, then start Yuuki with
+
+```sh
+python advanced_mqtt.py
+```
+
+That's it! Your OpenC2 MQTT Consumer is ready for any published commands. If you're familiar with MQTT, by default Yuuki listens for OpenC2 commands on the topic **yuuki_user/oc2/cmd**, and publishes its responses to **yuuki_user/oc2/rsp**. Next, we'll write some quick scripts to make sure it's working.
+
+## Test MQTT Transport
+
+### Subscribe to OpenC2 Responses
+In a new terminal window, go back to the root "yuuki" folder, then enable the virtual environment and start a Python shell.
+
+```sh
+source venv/bin/activate
+python
+```
+
+Copy this text into the shell.
+
+```python
+import paho.mqtt.client as mqtt
+import json
+
+def on_connect(client, userdata, flags, rc):
+    print("Connected to broker. Result:", str(rc))
+    topic_filter = "yuuki_user/oc2/rsp"
+    client.subscribe(topic_filter)
+    print("Listening for OpenC2 responses on", topic_filter)
+
+def on_message(client, userdata, msg):
+    print("MESSAGE FROM TOPIC {} START:".format(msg.topic))
+    print(json.dumps(json.loads(msg.payload), indent=4))
+    print("MESSAGE END.\n")
+
+client = mqtt.Client()
+client.on_connect = on_connect
+client.on_message = on_message
+client.connect("test.mosquitto.org", 1883, 60)
+client.loop_forever()
+pass
+
+```
+
+*Later, when done with this shell, hit CTRL-C, then type exit() and hit enter*
+
+### Publish an OpenC2 Command
+In _yet_ _another_ terminal window, enable the virtual environment and start a Python shell.
+
+```sh
+source venv/bin/activate
+python
+```
+
+Copy this text into the shell.
+
+```python
+import paho.mqtt.publish as publish
+import json
+
+query_features = {
+        "action": "query",
+        "target": {
+            "features": []
+        },
+        "args": {
+            "response_requested": "complete"
+        }
+    }
+
+as_json = json.dumps(query_features)
+
+publish.single("yuuki_user/oc2/cmd", payload=as_json, hostname="test.mosquitto.org", port=1883)
+pass
+
+```
+
+*Later, when done with this shell, type exit() and hit enter*
+
+### Check Results
+Go back to the previous subscription shell, and there should be a JSON OpenC2 response message, like this:
+```json
+{
+    "status": 200,
+    "status_text": "OK - the Command has succeeded.",
+    "results": {
+        "versions": [
+            "1.0"
+```
+
+Success! The Yuuki Consumer successfully received an OpenC2 Command, then published an Openc2 Response.
+
+## Next Steps
+
+Now that a basic MQTT OpenC2 Consumer is working, you'll want to connect to your own broker, with a real login and topic structure. Look at the yuuki_config.json file to see where those settings are defined.
+
+

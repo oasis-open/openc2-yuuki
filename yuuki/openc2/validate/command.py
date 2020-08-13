@@ -1,17 +1,16 @@
-import re
+
 from collections import namedtuple
-from ..common.util import (
-    OC2Cmd,
-    OC2Exception
-)
+import re
 
+from ..oc2_types import OC2Cmd
 
-def convert_raw_cmd(cmd: dict) -> OC2Cmd:
+def validate_cmd(cmd: dict) -> OC2Cmd:
     """
     Validate then convert a received command; raise ValueError as needed.
     """
     if not isinstance(cmd, dict):
-        raise OC2Exception('Received cmd is not a dict')
+        the_type = type(cmd)
+        raise ValueError('Received cmd is not a dict: {}'.format(the_type))
     
     FieldSchema = namedtuple('FieldSchema', 'name type required validators')
 
@@ -24,25 +23,26 @@ def convert_raw_cmd(cmd: dict) -> OC2Cmd:
     allowed = [action, target, args, actuator, command_id]
 
     if not all(key in [schema.name for schema in allowed] for key in cmd.keys()):
-        raise OC2Exception('Command has invalid fields')
+        raise ValueError('Command has invalid fields')
 
     if not all(key in cmd.keys() for key in [schema.name for schema in allowed if schema.required]):
-        raise OC2Exception('Command is missing required fields')
+        raise ValueError('Command is missing required fields')
 
     for schema in allowed:
         value = cmd.get(schema.name)
         if value is not None:
             if not isinstance(value, schema.type):
-                raise OC2Exception(f'Command {schema.name} field must be of type {schema.type}')
+                raise ValueError(f'Command {schema.name} field must be of type {schema.type}')
             for validator in schema.validators:
                 if not validator(value):
-                    raise OC2Exception(f'Command {schema.name} field failed a validator')
+                    raise ValueError(f'Command {schema.name} field failed a validator')
 
+    cmd['target_name'], = cmd['target'].keys()
     oc2cmd = OC2Cmd(*[cmd.get(f) for f in OC2Cmd._fields])
 
     nsids = _get_any_nsids(oc2cmd)
     if len(nsids) > 1:
-        raise OC2Exception(f'Command cannot contain more than one NSID, but found {nsids}')
+        raise ValueError(f'Command cannot contain more than one NSID, but found {nsids}')
     
     return oc2cmd
 
