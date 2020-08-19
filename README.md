@@ -15,7 +15,7 @@ To jump right in, head over to the examples directory, or follow along below for
 
 * [x] Support HTTP Transport
 * [x] Support MQTT Transport
-* [x] Suport JSON serialization
+* [x] Support JSON serialization
 * [x] Allow swapping in new serializations
 * [x] Allow swapping in new transports
 * [x] Allow swapping in new validation
@@ -81,7 +81,7 @@ consumer = Consumer(
     serialization = Json )
 ```
 
-See the **Json**, **Http** and **validate_cmd** parameters? Simply replace any of those with a library of your own; just as long as you follow the same Yuuki interface.
+See the **Json**, **Http** and **validate_cmd** arguments? Simply replace any of those with a library of your own; just as long as you follow the same Yuuki interface.
 
 Before getting ahead of ourselves with customization, let's just run a simple example: HTTP
 
@@ -96,7 +96,6 @@ cd yuuki
 python3 -m venv venv
 source venv/bin/activate
 git clone THIS_REPO
-TEMPORARARY, CHANGE TO DEVELOP BRANCH: cd openc2-yuuki && git checkout mqtt-develop && cd ..
 pip install ./openc2-yuuki
 ```
 
