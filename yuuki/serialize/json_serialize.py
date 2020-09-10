@@ -1,4 +1,5 @@
 import json
+import logging
 from .base import _Serializer
 from ..openc2.oc2_types import OC2Response, StatusCode
 
@@ -7,10 +8,12 @@ from ..openc2.oc2_types import OC2Response, StatusCode
 class Json(_Serializer):
     @staticmethod
     def serialize(obj : OC2Response):
+        logging.debug('Json Serialize')
         return _JsonEncoder().encode(obj)
 
     @staticmethod
     def deserialize(obj):
+        logging.debug('Json Deserialize')
         try:
             retval = json.loads(obj)
             if isinstance(retval, str):

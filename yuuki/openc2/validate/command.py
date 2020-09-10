@@ -1,13 +1,15 @@
+"""Command validation and conversion to OC2Cmd"""
 
 from collections import namedtuple
 import re
 
 from ..oc2_types import OC2Cmd
 
-def validate_cmd(cmd: dict) -> OC2Cmd:
+def validate_and_convert(cmd: dict) -> OC2Cmd:
+    """ Validate then convert a received command (dict)
+    to an OC2Cmd object; raise ValueError as needed.
     """
-    Validate then convert a received command; raise ValueError as needed.
-    """
+    
     if not isinstance(cmd, dict):
         the_type = type(cmd)
         raise ValueError('Received cmd is not a dict: {}'.format(the_type))

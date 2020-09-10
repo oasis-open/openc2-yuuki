@@ -1,43 +1,113 @@
+"""
+MQTT Transport
+
+Contains the transport class to instantiate, and its config to customize.
+
+The tranport receives messages, then sends them on to a handler,
+and awaits a response to send back.
+
+Use as an argument to a Consumer constructor, eg:
+
+mqtt_config = MqttConfig(broker=...)
+mqtt_transport = Mqtt(mqtt_config)
+my_openc2_consumer = Consumer(transport=mqtt_transport, ...)
+my_openc2_consumer.start()
+
+"""
+
 import asyncio
 import socket
+import logging
 from math import inf
+from dataclasses import dataclass, field
+from typing import List, Optional
 import paho.mqtt.client as mqtt
 from .base import Transport
 
+# ----- Configuration ----
+
+@dataclass
+class Authorization():
+    enable : bool = False
+    user_name : Optional[str] = None
+    pw : Optional[str] = None
+
+@dataclass
+class Authentication():
+    enable : bool = False
+    certfile: Optional[str] = None
+    keyfile:  Optional[str] = None
+    ca_certs: Optional[str] = None
+
+@dataclass
+class BrokerConfig():
+    socket : str = '127.0.0.1:1833'
+    client_id : str = ''
+    keep_alive : int = 60
+    authorization : Authorization = field(default_factory=Authorization)
+    authentication : Authentication = field(default_factory=Authentication)
+
+@dataclass
+class Subscription():
+    '''Topic Filter and QoS for one subscription.
+    
+    Create one of these for each command source.
+    '''
+    topic_filter : str = 'yuuki_user/oc2/cmd'
+    qos : int = 1
+
+@dataclass
+class Publish():
+    '''Topic Name and QoS for one publish destination.
+    
+    Create one of these for each response destination.
+    '''
+    topic_name : str = 'yuuki_user/oc2/rsp'
+    qos : int = 1
+
+@dataclass
+class MqttConfig():
+    '''Configuration object to be passed to Mqtt Transport init.
+
+    Accept the defaults or customize as necessary.
+
+    broker: socket, client_id, authorization, authentication
+    subscriptions: list of topic_name/qos objects for commands
+    publishes: list of topic_filter/qos objects for responses
+    '''
+    broker : BrokerConfig = field(default_factory=BrokerConfig)
+    subscriptions : List[Subscription] = field(default_factory=lambda : [Subscription()])
+    publishes : List[Publish] = field(default_factory=lambda : [Publish()])
+    
+
+
+# ----- Transport ----
+
 class Mqtt(Transport):
-    def __init__(self, mqtt_config):
+    '''Implements Transport base class for MQTT'''
+
+    def __init__(self, mqtt_config: MqttConfig):
         super().__init__(mqtt_config)
         self.in_msg_queue = asyncio.Queue()
 
-    @property
-    def max_responses_per_input_message(self):
-        return inf
-    
-    @property
-    def rate_limit(self):
-        return 30
-    
-    def parse_config(self):
-        socket = self.config['broker']['socket']
-        self.host, self.port = socket.split(':')
-        self.port = int(self.port)
-        self.client_id = self.config['broker']['client_id']
-        self.use_credentials = self.config['broker']['authorization']['enable']
-        self.user_name = self.config['broker']['authorization']['user_name']
-        self.password = self.config['broker']['authorization']['pw']
-
-        self.cmd_subs = self.config['subscribe']['commands']
-        self.rsp_pubs = self.config['publish']['responses']
+    def process_config(self):
+        self.host, port = self.config.broker.socket.split(':')
+        self.port = int(port)
     
     def start(self):
-        mqtt_client = _MqttClient(self.cmd_subs,
-                                  self.rsp_pubs,
-                                  self.host,
-                                  self.port,
-                                  self.use_credentials,
-                                  self.user_name,
-                                  self.password,
-                                  self.client_id)
+        mqtt_client = _MqttClient(cmd_subs = self.config.subscriptions,
+                                  rsp_pubs = self.config.publishes,
+                                  host = self.host,
+                                  port = self.port,
+                                  keep_alive = self.config.broker.keep_alive,
+                                  use_credentials =self.config.broker.authorization.enable,
+                                  user_name = self.config.broker.authorization.user_name,
+                                  password  = self.config.broker.authorization.pw,
+                                  client_id = self.config.broker.client_id,
+                                  use_tls   = self.config.broker.authentication.enable,
+                                  ca_certs  = self.config.broker.authentication.ca_certs,
+                                  certfile  = self.config.broker.authentication.certfile,
+                                  keyfile   = self.config.broker.authentication.keyfile)
         
         mqtt_client.msg_handler = self.on_oc2_msg
         mqtt_client.connect()
@@ -45,30 +115,45 @@ class Mqtt(Transport):
         loop.run_until_complete(mqtt_client.main())
 
     async def on_oc2_msg(self, raw_data, response_queue):
-        result = await self.get_response(raw_data)
-        response_queue.put_nowait(result)
-
+        '''Called whenever our real mqtt client gets a message'''
+        try:
+            result = await self.get_response(raw_data)
+            response_queue.put_nowait(result)
+        except Exception as e:
+            logging.error('Message Handling Failed {}'.format(e))
 
 
 class _MqttClient():
+    '''Wrapper around the paho mqtt client'''
     def __init__(self,
                  cmd_subs,
                  rsp_pubs,
                  host,
                  port,
+                 keep_alive,
                  use_credentials,
                  user_name,
                  password,
-                 client_id):
+                 client_id,
+                 use_tls,
+                 ca_certs,
+                 certfile,
+                 keyfile):
         self.cmd_subs = cmd_subs
         self.rsp_pubs = rsp_pubs
         self.host = host
         self.port = port
+        self.keep_alive = keep_alive
         self.use_credentials = use_credentials
         self.user_name = user_name
         self.password = password
         self.client_id = client_id
-        
+        self.use_tls = use_tls
+        self.ca_certs = ca_certs
+        self.certfile = certfile
+        self.keyfile = keyfile
+
+
         self._client = None
         self.msg_handler = None
         self.loop = asyncio.get_event_loop()
@@ -96,25 +181,30 @@ class _MqttClient():
         if self.use_credentials:
             self._client.username_pw_set(self.user_name, password=self.password)
 
-    async def worker(self, in_msg_queue):
-        oc2_msg = await in_msg_queue.get()
-
     def _on_log(self, client, userdata, level, buf):
         pass
+
     def _on_connect(self, client, userdata, flags, rc):
+        logging.info('OnConnect')
         for sub_info in self.cmd_subs:
-            self.subscribe(sub_info['topic_filter'])
+            self.subscribe(sub_info.topic_filter, sub_info.qos)
+
     def _on_subscribe(self, client, userdata, mid, granted_qos):
-        pass
+        logging.info('OnSubscribe')
+
     def _on_unsubscribe(self, client, userdata, mid):
         pass
+
     def _on_publish(self, client, userdata, mid):
-        pass
+        logging.info('OnPublish')
+
     def _on_message(self, client, userdata, msg):
+        logging.info('OnMessage: {}'.format( msg.payload))
         self.in_msg_queue.put_nowait(msg.payload)
         
     def _on_disconnect(self, client, userdata, rc):
-        pass
+        loggin.info('OnDisconnect')
+        self.disconnected.set_result('disconnected')
     
     def on_socket_open(self, client, userdata, sock):
         def cb():
@@ -144,7 +234,7 @@ class _MqttClient():
                 response = self.out_msg_queue.get_nowait()
                 self.out_msg_queue.task_done()
                 for rsp_pub_info in self.rsp_pubs:
-                    self.publish(rsp_pub_info['topic_name'], response)
+                    self.publish(rsp_pub_info.topic_name, response, rsp_pub_info.qos)
             if self.in_msg_queue.qsize() > 0:
                 msg = self.in_msg_queue.get_nowait()
                 self.in_msg_queue.task_done()
@@ -152,25 +242,32 @@ class _MqttClient():
             
             try:
                 await asyncio.sleep(1)
-            except asyncio.CancelledError:
+            except asyncio.CancelledError as e:
                 break
 
     def connect(self):
         try:
-            self._client.connect(self.host, self.port, keepalive=5)
+            if self.use_tls:
+                logging.info('Will use TLS')
+                self._client.tls_set(ca_certs=self.ca_certs, certfile=self.certfile, keyfile=self.keyfile)
+            logging.info('Connecting --> {}:{} --> keep_alive:{} ...'.format(self.host, self.port, self.keep_alive))
+            self._client.connect(self.host, self.port, keepalive=self.keep_alive)
+            
         except ConnectionRefusedError:
-            print('Broker refused connection')
+            logging.warning('BrokerConfig refused connection')
             return
         self._client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
 
-    def subscribe(self,topic_filter):
-        self._client.subscribe(topic_filter)
+    def subscribe(self,topic_filter, qos):
+        logging.info('Subscribing --> {} {} ...'.format( topic_filter, qos))
+        self._client.subscribe(topic_filter, qos)
     
-    def publish(self, topic, payload):
+    def publish(self, topic, payload, qos):
         try:
-            msg_info = self._client.publish(topic, payload=payload)
+            msg_info = self._client.publish(topic, payload=payload, qos=qos)
+            logging.info('Publishing --> {} {} ...'.format(payload, qos))
         except Exception as e:
-            print('problem ', e)
+            logging.error('Publish failed', e)
     
     def disconnect(self):
         self._client.disconnect()

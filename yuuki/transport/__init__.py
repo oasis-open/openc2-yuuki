@@ -1,4 +1,23 @@
-from .http import Http
-from .mqtt import Mqtt
+from .http import (
+    Http,
+    HttpConfig
+)
+from .mqtt import (
+    Mqtt,
+    MqttConfig,
+    Authorization,
+    Authentication,
+    BrokerConfig,
+    Publish,
+    Subscription
+)
 
-__all__ = ['Http', 'Mqtt']
+__all__ = [ 'Http', 
+            'HttpConfig',
+            'Mqtt',
+            'MqttConfig',
+            'Authorization',
+            'Authentication',
+            'BrokerConfig',
+            'Publish',
+            'Subscription']

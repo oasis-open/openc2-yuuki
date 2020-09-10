@@ -1,5 +1,8 @@
+"""Basic OpenC2 Types: Command, Response, etc"""
+
 from enum import Enum
 from collections import UserDict, namedtuple
+from typing import Optional, List, Dict
 import json
 
 OC2Cmd = namedtuple('OC2Cmd', 'action target target_name args actuator command_id')
@@ -35,15 +38,15 @@ class StatusCode(Enum):
 class OC2Response():
     def __init__(self,
                  status: StatusCode = StatusCode.NOT_IMPLEMENTED,
-                 status_text: str = None,
-                 results: dict = None):
+                 status_text: Optional[str] = None,
+                 results: Optional[Dict[str,str]] = None):
         self._status = status
         self._status_text = status_text
         self._results = results
     
     @property
     def status(self):
-        return self._status
+        return self._status.value
     @property
     def status_text(self):
         return self._status_text

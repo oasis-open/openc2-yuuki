@@ -19,33 +19,34 @@ To jump right in, head over to the examples directory, or follow along below for
 * [x] Allow swapping in new serializations
 * [x] Allow swapping in new transports
 * [x] Allow swapping in new validation
+* [x] Support TLS
+* [x] Support Running Multiple Actuator Profiles At Once
 
 # Open Issues
 
-* [ ] Support TLS
-* [ ] Support Running Multiple Actuator Profiles At Once
+* [ ] None! Please open a new issue! 
 
 # Yuuki
 
-A Yuuki Consumer is a program that listens for OpenC2 Commands sent from an OpenC2 Producer. It uses received commands to control an actuator. The sequence diagram below shows the basic flow of an OpenC2 Message, from receiving a Command to sending a Response.
+A Yuuki Consumer is a program that listens for OpenC2 Commands sent from an OpenC2 Producer. It uses received commands to control an actuator(s). The sequence diagram below shows the basic flow of an OpenC2 Message in Yuuki, from receiving a Command to sending a Response.
 
 
 #### Architecture
 
 ```
-OpenC2 Producer               ----------------- Yuuki (OpenC2 Consumer)-----------------       Actuator
-    |                         |                                                        |           |
-    |                         |                                                        |           |
-    |                         | Transport     Serialize /      Validate       Actuator |           |
-    |                         | Endpoint      Deserialize         |           Profile  |           |
-    |                         |    |               |              |           Command  |           |
+OpenC2 Producer               ----------------- Yuuki (OpenC2 Consumer)-----------------       Command
+    |                         |                                                        |       Handler
+    |                         |                                                        |      (Actuator)
+    |                         | Transport     Serialize /      Validate       Command  |           |
+    |                         | Endpoint      Deserialize         |           Dispatch |           |
+    |                         |    |               |              |              |     |           |
     v                         |    |               |              |              |     |           |
                               |    v               v              v              v     |           v
     |         Network         |                                                        |              
     | ------------------------|--> |                                                   |              
     |       OpenC2 Command    |    |                                                   |              
             (serialized)      |    | ------------> |                                   |              
-                              |                    |                                   |            
+                              |                    | (Python Dict)                     |            
                               |                    | -----------> | OpenC2 Command     |              
                               |                                   |  (Python Obj)      |              
                               |                                   | ------------> |    |              
@@ -76,24 +77,22 @@ For example, look at how the main OpenC2 Consumer is contructed in **simple_http
 
 ```python
 consumer = Consumer( 
-    profile       = ProfileSLPF(validator = validate_cmd),
+    cmd_handler   = CmdHandler(validator = validate_and_convert),
     transport     = Http(http_config),
     serialization = Json )
 ```
 
-See the **Json**, **Http** and **validate_cmd** arguments? Simply replace any of those with a library of your own; just as long as you follow the same Yuuki interface.
+See the **Json**, **Http** and **validate_and_convert** arguments? Simply replace any of those with a library of your own; just as long as you follow the same Yuuki interface.
 
 Before getting ahead of ourselves with customization, let's just run a simple example: HTTP
 
-*But first, install Yuuki.*
-
 # Installation
 
-Using Python3.7+, install via venv and pip:
+Using Python3.7+, install with venv and pip:
 ```sh
 mkdir yuuki
 cd yuuki
-python3 -m venv venv
+python3.7 -m venv venv
 source venv/bin/activate
 git clone THIS_REPO
 pip install ./openc2-yuuki
@@ -101,14 +100,7 @@ pip install ./openc2-yuuki
 
 # Simple Example: HTTP
 
-Create a default config file in the *examples* directory with:
-
-```sh
-cd openc2-yuuki/examples
-python -m yuuki.consumer.config_writer
-```
-
-Now run the HTTP consumer in the *examples* directory with
+Running HTTP locally shouldn't require any configuration. Run the HTTP consumer `simple_http.py` in the *examples* directory with
 
 ```sh
 python simple_http.py
@@ -133,7 +125,7 @@ import json
 query_features = {
         "action": "query",
         "target": {
-            "features": []
+            "features": ["versions","profiles"]
         },
         "args": {
             "response_requested": "complete"
@@ -141,14 +133,13 @@ query_features = {
     }
 
 as_json = json.dumps(query_features)
-headers = {"Content-Type" : "application/json"}
+headers = {"Content-Type" : "application/openc2-cmd+json;version=1.0"}
 
 response = requests.post("http://127.0.0.1:9001", json=as_json, headers=headers, verify=False)
 
 print('Sent OpenC2 Command')
 print(json.dumps(response.json(), indent=4))
 pass
-
 ```
 
 Because we're testing locally, you should instantly see the OpenC2 Response, similar to this.
@@ -163,6 +154,9 @@ Because we're testing locally, you should instantly see the OpenC2 Response, sim
         ],
         "profiles": [
             "slpf"
+        ]
+    }
+}
 ```
 
 *When done with this Producer shell, type exit() and hit enter*
@@ -173,28 +167,30 @@ Success! The Yuuki Consumer successfully received an OpenC2 Command, then return
 In the Yuuki Consumer shell, hit CTRL-C to stop the process.
 
 # Advanced Example: MQTT
-If you don't have a config file in the *examples* directory, create one now with:
+MQTT requires a little configuration. We'll need to connect to an MQTT broker. Mosquitto is a free broker that's always up (and offers no privacy).
 
-```sh
-cd openc2-yuuki/examples
-python -m yuuki.consumer.config_writer
+At the bottom of `advanced_mqtt.py` in the *examples* directory, supply the socket address for the broker.
+
+```python
+    mqtt_config = MqttConfig(
+                    broker=BrokerConfig(
+                        socket='test.mosquitto.org:1883'))
 ```
 
-We'll need to connect to an MQTT broker. There are a few public brokers to test against that offer no privacy. We'll use Mosquitto. 
-
-In the MQTT transport section of **yuuki_config.json**, supply the socket address for the broker.
-
-```json    
-"socket" : "test.mosquitto.org:1883"
-```
-
-Save your config file, then start Yuuki with
-
-```sh
-python advanced_mqtt.py
-```
+Save your file.
 
 That's it! Your OpenC2 MQTT Consumer is ready for any published commands. If you're familiar with MQTT, by default Yuuki listens for OpenC2 commands on the topic **yuuki_user/oc2/cmd**, and publishes its responses to **yuuki_user/oc2/rsp**. Next, we'll write some quick scripts to make sure it's working.
+
+If you'd like to change the topics, you can like so:
+
+```python
+    mqtt_config = MqttConfig(
+                    ...
+                    subscriptions=[Subscription('subcribe/to/command/topic', 1),
+                                   Subscription('another/command/topic', 0)],
+                    publishes=[Publish('publish/responses/here', 0),
+                               Publish('another/response/topic', 3)])
+```
 
 ## Test MQTT Transport
 
@@ -251,7 +247,7 @@ import json
 query_features = {
         "action": "query",
         "target": {
-            "features": []
+            "features": ["pairs", "versions"]
         },
         "args": {
             "response_requested": "complete"
@@ -268,7 +264,7 @@ pass
 *Later, when done with this shell, type exit() and hit enter*
 
 ### Check Results
-Go back to the previous subscription shell, and there should be a JSON OpenC2 response message, like this:
+Go back to the previous subscription shell, and there should be a JSON OpenC2 response message, similiar to this:
 ```json
 {
     "status": 200,
@@ -276,12 +272,13 @@ Go back to the previous subscription shell, and there should be a JSON OpenC2 re
     "results": {
         "versions": [
             "1.0"
+        ],
+        "pairs": [
+            "slpf"
+        ]
+    }
+}
 ```
 
 Success! The Yuuki Consumer successfully received an OpenC2 Command, then published an Openc2 Response.
-
-## Next Steps
-
-Now that a basic MQTT OpenC2 Consumer is working, you'll want to connect to your own broker, with a real login and topic structure. Look at the yuuki_config.json file to see where those settings are defined.
-
 
