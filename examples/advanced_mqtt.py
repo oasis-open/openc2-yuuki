@@ -165,13 +165,13 @@ class CmdHandler(OpenC2CmdDispatchBase):
 if __name__ == '__main__':
     mqtt_config = MqttConfig(
                     broker=BrokerConfig(
-                        socket='34.86.117.113:1883',
-                        client_id='patty',
+                        socket='127.0.0.1:1883',
+                        client_id='',
                         keep_alive=60,
                         authorization=Authorization(
-                            enable=True,
-                            user_name='plug',
-                            pw='fest'),
+                            enable=False,
+                            user_name=None,
+                            pw=None),
                         authentication=Authentication(
                             enable=False,
                             certfile=None,
