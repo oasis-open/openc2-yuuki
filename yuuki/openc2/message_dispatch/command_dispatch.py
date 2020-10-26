@@ -5,7 +5,7 @@ Base class for OpenC2 Command Handlers that you create.
 from functools import partial
 import logging
 from .command_decorators import _OC2PairMeta
-from ..oc2_types import OC2Cmd, OC2Response, StatusCode
+from ..oc2_types import OC2Cmd, OC2Rsp, OC2Msg, StatusCode
 
 
 
@@ -35,7 +35,7 @@ class OpenC2CmdDispatchBase(metaclass=_OC2PairMeta):
     target: {'my_target' : ...}
     actuator: {my_actautor_nsid : {...}}
 
-    See the implementation of get_actuator_func for details.
+    See the implementation of get_actuator_callable for details.
 
     """
     def __init__(self,validator):
@@ -69,11 +69,12 @@ class OpenC2CmdDispatchBase(metaclass=_OC2PairMeta):
                 pairs[action] = [target]
         return pairs
 
-    def get_actuator_func(self,data_dict):
+    def get_actuator_callable(self,oc2_msg: OC2Msg):
         func_name = None
         func = None
-        logging.debug('Validating...')
-        oc2_cmd = self.validator(data_dict)
+        logging.warning('Validation is disabled in this work-in-progress branch')
+        #oc2_cmd = self.validator(data_dict)
+        oc2_cmd = oc2_msg.body.openc2.request
         cmd_actuator_nsid = None
 
         logging.debug('Determining which Consumer/Actuator function to call')
@@ -115,7 +116,7 @@ class OpenC2CmdDispatchBase(metaclass=_OC2PairMeta):
         else:
             raise NotImplementedError('No function defined for: ',oc2_cmd)
 
-        logging.debug('Will call {}'.format(func_name))
+        logging.debug('Will call a method named: {}'.format(func_name))
         my_callable = partial(func, oc2_cmd)
         return my_callable
 
@@ -137,10 +138,10 @@ class OpenC2CmdDispatchBase(metaclass=_OC2PairMeta):
                     args_other = str(args_other) + str(key) + str(value)
         
         if args_response_requested is not None and args_response_requested != 'complete':
-            return OC2Response(status=StatusCode.BAD_REQUEST,
+            return OC2Rsp(status=StatusCode.BAD_REQUEST,
                                status_text='Only arg response_requested=complete allowed')
         if args_other is not None:
-            return OC2Response(status=StatusCode.BAD_REQUEST,
+            return OC2Rsp(status=StatusCode.BAD_REQUEST,
                                status_text='Only arg response_requested allowed')
 
         # Target Specifiers
@@ -157,11 +158,11 @@ class OpenC2CmdDispatchBase(metaclass=_OC2PairMeta):
             elif item == 'pairs':
                 retval_results['pairs'] = self.pairs
             else:
-                return OC2Response(status=StatusCode.BAD_REQUEST,
+                return OC2Rsp(status=StatusCode.BAD_REQUEST,
                                    status_text='features field only allows versions, profiles, rate_limit, and pairs')
 
         if len(retval_results) > 0:
-            return OC2Response(status=StatusCode.OK,
+            return OC2Rsp(status=StatusCode.OK,
                                results=retval_results)
         else:
-            return OC2Response(status=StatusCode.OK)
+            return OC2Rsp(status=StatusCode.OK)

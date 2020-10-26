@@ -35,7 +35,8 @@ from yuuki.transport import (
     Authentication,
     BrokerConfig, 
     Publish, 
-    Subscription
+    Subscription,
+    OpenC2Options
 )
 
 logging.basicConfig(format='%(levelname)s:%(message)s',level=logging.INFO)
@@ -190,7 +191,8 @@ if __name__ == '__main__':
                         Publish(
                             topic_name='yuuki_user/oc2/rsp',
                             qos=1
-                        )]
+                        )],
+                    oc2_options=OpenC2Options(use_oc2_mqtt_header=True)
                     )
     
     consumer = Consumer(
