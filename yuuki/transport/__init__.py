@@ -9,7 +9,8 @@ from .mqtt import (
     Authentication,
     BrokerConfig,
     Publish,
-    Subscription
+    Subscription,
+    OpenC2Options
 )
 
 __all__ = [ 'Http', 
@@ -20,4 +21,5 @@ __all__ = [ 'Http',
             'Authentication',
             'BrokerConfig',
             'Publish',
-            'Subscription']
+            'Subscription',
+            'OpenC2Options']
