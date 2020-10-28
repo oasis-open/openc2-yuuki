@@ -27,11 +27,11 @@ class CmdHandler(OpenC2CmdDispatchBase):
         return 60
 
     @oc2_query_features
-    def func1(self, oc2_cmd : OC2Cmd) -> OC2Response:
+    def func1(self, oc2_cmd : OC2Cmd) -> OC2Rsp:
         return super().query_features(oc2_cmd)
 
     @oc2_pair('slpf', 'deny', 'ipv4_connection')
-    def func2(self, oc2_cmd : OC2Cmd) -> OC2Response:
+    def func2(self, oc2_cmd : OC2Cmd) -> OC2Rsp:
         allowed_keys = ['src_addr', 'src_port', 'dst_addr', 'dst_port', 'protocol']
         found_keys = []
         found_other = []
@@ -44,23 +44,23 @@ class CmdHandler(OpenC2CmdDispatchBase):
                     found_other.append(key)
 
         if len(found_keys) < 1 or len(found_other) > 0:
-            return OC2Response(status=StatusCode.BAD_REQUEST)
+            return OC2Rsp(status=StatusCode.BAD_REQUEST)
 
         # Execute a real function here to deny...
 
-        return OC2Response(status=StatusCode.OK)
+        return OC2Rsp(status=StatusCode.OK)
     
     @oc2_pair('x-acme', 'detonate', 'x-acme:roadrunner')
-    def func3(self, oc2_cmd : OC2Cmd) -> OC2Response:
+    def func3(self, oc2_cmd : OC2Cmd) -> OC2Rsp:
         raise SystemError('Impossible! Coyote never wins!')
     
     @oc2_no_matching_pair
-    def func4(self, oc2_cmd : OC2Cmd) -> OC2Response:
-        return OC2Response(status=StatusCode.NOT_FOUND)
+    def func4(self, oc2_cmd : OC2Cmd) -> OC2Rsp:
+        return OC2Rsp(status=StatusCode.NOT_FOUND)
 
     @oc2_no_matching_actuator
-    def func5(self, oc2_cmd : OC2Cmd) -> OC2Response:
-        return OC2Response(status=StatusCode.NOT_FOUND)
+    def func5(self, oc2_cmd : OC2Cmd) -> OC2Rsp:
+        return OC2Rsp(status=StatusCode.NOT_FOUND)
 
 if __name__ == '__main__':
     http_config = HttpConfig()
